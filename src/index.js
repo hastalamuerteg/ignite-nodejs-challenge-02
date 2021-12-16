@@ -10,26 +10,62 @@ app.use(cors());
 const users = [];
 
 function checksExistsUserAccount(request, response, next) {
-  // Complete aqui
+  const { username } = request.headers;
+  const foundUser = users.find((user) => user.username === username);
+  if (foundUser) {
+    request.user = foundUser;
+    next();
+  } else {
+    return response.status(404);
+  }
 }
 
 function checksCreateTodosUserAvailability(request, response, next) {
-  // Complete aqui
+  const { user } = request;
+  const userHasAvailableTodos = user.todos.length < 10;
+  const isProUser = user.pro;
+
+  if (userHasAvailableTodos || isProUser) {
+    next();
+  } else {
+    return response.status(403).json();
+  }
 }
 
 function checksTodoExists(request, response, next) {
-  // Complete aqui
+  const { username } = request.headers;
+  const { id } = request.params;
+  const validUuid = validate(id); 
+
+  if(!validUuid) return response.status(400);
+  
+  const validUser = users.find(u => u.username === username);
+  const userTodoMatchesId = validUser?.todos?.find(todo => todo.id === id);
+  if (!userTodoMatchesId || !validUser) {
+    return response.status(404);
+  } else {
+    request.todo = userTodoMatchesId;
+    request.user = validUser;
+    next();
+  } 
 }
 
 function findUserById(request, response, next) {
   // Complete aqui
+  const { id } = request.params;
+  const foundUserById = users.find(u => u.id === id);
+
+  if (!foundUserById) {
+    return response.status(404);
+  } else {
+    request.user = foundUserById;
+    next();
+  }
 }
 
 app.post('/users', (request, response) => {
   const { name, username } = request.body;
-
   const usernameAlreadyExists = users.some((user) => user.username === username);
-
   if (usernameAlreadyExists) {
     return response.status(400).json({ error: 'Username already exists' });
   }
@@ -43,13 +79,11 @@ app.post('/users', (request, response) => {
   };
 
   users.push(user);
-
   return response.status(201).json(user);
 });
 
 app.get('/users/:id', findUserById, (request, response) => {
   const { user } = request;
-
   return response.json(user);
 });
 
@@ -61,7 +95,6 @@ app.patch('/users/:id/pro', findUserById, (request, response) => {
   }
 
   user.pro = true;
-
   return response.json(user);
 });
 
